@@ -174,7 +174,7 @@ class CleanupBanches
     _, remote_ref, *branch_parts = branch.split('/')
     remote_branch = branch_parts.join('/')
     puts "running 'git push #{remote_ref} :#{remote_branch}'"
-    puts `git push #{remote} :#{remote_branch}`
+    puts `git push #{remote_ref} :#{remote_branch}`
   end
   private :delete_remote
 
