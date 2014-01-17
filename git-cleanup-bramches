@@ -1,0 +1,212 @@
+#! /usr/bin/env ruby
+# encoding: utf-8
+#
+require 'optparse'
+require 'ostruct'
+
+class CleanupBanches
+  REMOTE_PATTERN = /\[remote \"(?<remote>\w+)\"\]/
+  OPTIONS        = {
+    :delete => ['y', 'yes'],
+    :skip   => ['N', 'No'],
+    :quit   => ['exit']
+  }
+
+  PROMPT         = "delete? [#{OPTIONS.values.flatten.join('/')}] >> "
+  def initialize(args)
+    @options = parse_options(args)
+  end
+
+  def run
+    check_current_branch!
+    pull!
+    merged_branches.each(&delete_branch)
+  end
+
+  def ask(prompt)
+    print prompt
+    gets.strip
+  end
+
+  def defaults
+    defaults = {
+      :local_only  => false,
+      :num_commits => 5,
+      :keep        => ['master']
+    }
+    OpenStruct.new defaults
+  end
+  private :defaults
+
+  def parse_options(args)
+    options = defaults
+    op = OptionParser.new do |opts|
+      opts.banner = "Cleanup merged branches\nusage: git cleanup-branches [-l -h] [-n NUM_COMMITS] [-k KEEP]"
+      opts.separator ""
+      opts.separator "Specific options:"
+
+      opts.on('-l', '--local-only', 'Clenup only local branches') do |local_only|
+        options.local_only = true
+      end
+
+      opts.on('-n', '--num-commits [NUM_COMMITS]', Integer, 'limit commits to num-commits, defaults to 5') do |num_commits|
+        options.num_commits = num_commits
+      end
+
+      opts.on('-k', '--keep branch,branch2', Array, 'keep branches') do |branches_list|
+        options.keep = branches_list
+      end
+
+      opts.on('-h', '--help', 'help') do
+        puts opts
+        exit
+      end
+    end
+    op.parse!(args)
+    puts op.banner
+    options
+  end
+  private :parse_options
+
+  def remotes
+    @remotes ||= get_remotes
+  end
+  private :remotes
+
+  def get_remotes
+    git_config = File.read(File.join(Dir.pwd, '.git/config'))
+    git_config.split("\n").grep(REMOTE_PATTERN){ |remote|
+      REMOTE_PATTERN.match(remote)[:remote]
+    }
+  end
+  private :get_remotes
+
+  def current_branch
+    @current_branch ||= `git rev-parse --abbrev-ref HEAD`.strip
+  end
+  private :current_branch
+
+  def check_current_branch!
+    unless current_branch == 'master'
+      puts "on branch: #{current_branch}"
+      puts 'checkout master and try again'
+      exit 1
+    end
+  end
+  private :check_current_branch!
+
+  def pull!
+    puts 'pulling...'
+    puts `git pull`
+  end
+  private :pull!
+
+  def merged_branches
+    if @options.local_only
+      `git branch --merged`
+    else
+      `git branch -a --merged`
+    end.split("\n").map{ |l| l.strip }.reject(&keep_branch?)
+  end
+  private :merged_branches
+
+  def keep_branch?
+    ->(branch){
+      current_branch?(branch) || remote_master?(branch) || exclude_branch?(branch)
+    }
+  end
+  private :keep_branch?
+
+  def current_branch?(branch)
+     /^\*/ =~ branch
+  end
+  private :current_branch?
+
+  def remote_master?(branch)
+    remotes.reduce(false){ |remote_master, element|
+      if !remote_master
+        /#{element}\/master$/ =~ branch
+      else
+        remote_master
+      end
+    }
+  end
+  private :remote_master?
+
+  def exclude_branch?(branch)
+    (@options.keep || []).reduce(false){ |keep, element|
+      if !keep
+        /#{Regexp.escape(element)}/ =~ branch
+      else
+        keep
+      end
+    }
+  end
+  private :exclude_branch?
+
+  def delete_branch
+    ->(branch){
+      summarize(branch)
+      resp = ask PROMPT
+      if check_option(:quit, resp)
+        puts 'I quit!'
+        exit
+      elsif check_option(:delete, resp)
+        if local?(branch)
+          delete_local(branch)
+        else
+          delete_remote(branch)
+        end
+      else
+        puts 'Skipping...'
+      end
+    }
+  end
+  private :delete_branch
+
+  def remote?(branch)
+    /^remotes\// =~ branch
+  end
+  private :remote?
+
+  def delete_remote(branch)
+    puts 'Deleting remote...'
+    _, remote_ref, *branch_parts = branch.split('/')
+    remote_branch = branch_parts.join('/')
+    puts "running 'git push #{remote_ref} :#{remote_branch}'"
+    puts `git push #{remote} :#{remote_branch}`
+  end
+  private :delete_remote
+
+  def local?(branch)
+    !remote?(branch)
+  end
+  private :local?
+
+  def delete_local(branch)
+    puts 'Deleting local...'
+    puts "running 'git branch -d #{branch}'"
+    puts `git branch -d #{branch}`
+  end
+  private :delete_local
+
+  def summarize(branch)
+    puts "\nBRANCH: #{branch}"
+    puts "\tlast commits:"
+    last_commits(branch).each{ |commit| puts "\t\t#{commit}" }
+  end
+  private :summarize
+
+  def check_option(key, answer)
+    OPTIONS[key].map{ |opt| opt.upcase }.include?(answer.upcase)
+  end
+  private :check_option
+
+  def last_commits(branch)
+    `git log --pretty=format:\"%C(yellow)%h %Creset(%ad)%Cred%d %Creset%s%Cblue [%cn]%Creset\" --decorate --date=iso --no-merges --max-count=#{@options.num_commits} #{branch}`.split("\n").map{ |s| s.strip }
+  end
+  private :last_commits
+end
+
+CleanupBanches.new(ARGV).run
+
