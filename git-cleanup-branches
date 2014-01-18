@@ -1,18 +1,19 @@
 #! /usr/bin/env ruby
 # encoding: utf-8
-#
+
 require 'optparse'
 require 'ostruct'
 
 class CleanupBanches
   REMOTE_PATTERN = /\[remote \"(?<remote>\w+)\"\]/
-  OPTIONS        = {
-    :delete => ['y', 'yes'],
-    :skip   => ['N', 'No'],
-    :quit   => ['exit']
-  }
-
+  OPTIONS        = { :delete => ['y', 'yes'],
+                     :skip   => ['N', 'No'],
+                     :quit   => ['exit'] }
   PROMPT         = "delete? [#{OPTIONS.values.flatten.join('/')}] >> "
+  DEFAULTS       = { :local_only  => false,
+                     :num_commits => 5,
+                     :keep        => ['master'] }
+
   def initialize(args)
     @options = parse_options(args)
   end
@@ -20,44 +21,29 @@ class CleanupBanches
   def run
     check_current_branch!
     pull!
-    merged_branches.each(&delete_branch)
+    merged_branches.each(&review_and_perform_action)
   end
-
-  def ask(prompt)
-    print prompt
-    gets.strip
-  end
-
-  def defaults
-    defaults = {
-      :local_only  => false,
-      :num_commits => 5,
-      :keep        => ['master']
-    }
-    OpenStruct.new defaults
-  end
-  private :defaults
 
   def parse_options(args)
-    options = defaults
+    options = OpenStruct.new DEFAULTS
     op = OptionParser.new do |opts|
       opts.banner = "Cleanup merged branches\nusage: git cleanup-branches [-l -h] [-n NUM_COMMITS] [-k KEEP]"
       opts.separator ""
       opts.separator "Specific options:"
 
-      opts.on('-l', '--local-only', 'Clenup only local branches') do |local_only|
+      opts.on("-l", "--local-only", "Clenup only local branches") do |local_only|
         options.local_only = true
       end
 
-      opts.on('-n', '--num-commits [NUM_COMMITS]', Integer, 'limit commits to num-commits, defaults to 5') do |num_commits|
+      opts.on("-n", "--num-commits [NUM_COMMITS]", Integer, "limit commits to num-commits, defaults to 5") do |num_commits|
         options.num_commits = num_commits
       end
 
-      opts.on('-k', '--keep branch,branch2', Array, 'keep branches') do |branches_list|
+      opts.on("-k", "--keep branch,branch2", Array, "keep branches") do |branches_list|
         options.keep = branches_list
       end
 
-      opts.on('-h', '--help', 'help') do
+      opts.on("-h", "--help", "help") do
         puts opts
         exit
       end
@@ -74,7 +60,7 @@ class CleanupBanches
   private :remotes
 
   def get_remotes
-    git_config = File.read(File.join(Dir.pwd, '.git/config'))
+    git_config = File.read(File.join(Dir.pwd, ".git/config"))
     git_config.split("\n").grep(REMOTE_PATTERN){ |remote|
       REMOTE_PATTERN.match(remote)[:remote]
     }
@@ -87,16 +73,16 @@ class CleanupBanches
   private :current_branch
 
   def check_current_branch!
-    unless current_branch == 'master'
+    unless current_branch == "master"
       puts "on branch: #{current_branch}"
-      puts 'checkout master and try again'
+      puts "checkout master and try again"
       exit 1
     end
   end
   private :check_current_branch!
 
   def pull!
-    puts 'pulling...'
+    puts "pulling..."
     puts `git pull`
   end
   private :pull!
@@ -125,7 +111,7 @@ class CleanupBanches
   def remote_master?(branch)
     remotes.reduce(false){ |remote_master, element|
       if !remote_master
-        /#{element}\/master$/ =~ branch
+        /#{Regexp.escape(element)}\/master$/ =~ branch
       else
         remote_master
       end
@@ -144,25 +130,44 @@ class CleanupBanches
   end
   private :exclude_branch?
 
-  def delete_branch
+  def review_and_perform_action
     ->(branch){
       summarize(branch)
-      resp = ask PROMPT
-      if check_option(:quit, resp)
-        puts 'I quit!'
-        exit
-      elsif check_option(:delete, resp)
-        if local?(branch)
-          delete_local(branch)
+      while true
+        case ask PROMPT
+        when option(:quit)
+          puts "I quit!"
+          exit
+        when option(:delete)
+          if local? branch
+            delete_local branch
+          else
+            delete_remote branch
+          end
+          break
+        when option(:skip)
+          puts "Skipping..."
+          break
         else
-          delete_remote(branch)
+          puts "Don't know what to do"
         end
-      else
-        puts 'Skipping...'
       end
     }
   end
-  private :delete_branch
+  private :review_and_perform_action
+
+  def ask(prompt)
+    print prompt
+    gets.strip
+  end
+  private :ask
+
+  def option(option_sym)
+    ->(answer){
+      OPTIONS[option_sym].map{ |opt| opt.upcase }.include?(answer.upcase)
+    }
+  end
+  private :option
 
   def remote?(branch)
     /^remotes\// =~ branch
@@ -170,7 +175,7 @@ class CleanupBanches
   private :remote?
 
   def delete_remote(branch)
-    puts 'Deleting remote...'
+    puts "Deleting remote..."
     _, remote_ref, *branch_parts = branch.split('/')
     remote_branch = branch_parts.join('/')
     puts "running 'git push #{remote_ref} :#{remote_branch}'"
@@ -184,7 +189,7 @@ class CleanupBanches
   private :local?
 
   def delete_local(branch)
-    puts 'Deleting local...'
+    puts "Deleting local..."
     puts "running 'git branch -d #{branch}'"
     puts `git branch -d #{branch}`
   end
