@@ -28,5 +28,17 @@ Options are as follow:
 
 ![git-cleanup-branches screenshot](https://raw2.github.com/aarek/git-tools/master/img/screenshot-git-cleanup-branches1.png "git-cleanup-branches screenshot")
 
+git-merged-branches-differences
+-------------------------------
+
+```
+➭ git merged-branches-difference
+Show differnces in merged branches between two branches
+usage: git merged-branches-differences left right
+```
+
+this script will show you which branches are merged to left branch and not to right, and which are merged to right branch and not to left
+
+
 ### Installation:
-make sure the script is on your PATH and is executable
+make sure the scripts are on your PATH and are executable

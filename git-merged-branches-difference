@@ -1,0 +1,59 @@
+#! /usr/bin/env ruby
+# encoding: utf-8
+
+path = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
+require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
+
+class MergedBranchesDifference
+  include Console::Colorize
+
+  INFO = "Show differences in merged branches between two branches\nusage: git merged-branches-differences left right"
+
+  def initialize(args)
+    puts INFO
+    @left, @right, *_ = args
+    exit if @left.nil? || @right.nil?
+  end
+
+  def run
+    present_branch = ->(branch){
+      puts "\t#{branch}" 
+    }
+    puts "\non #{ green{ @left } } but not on #{ red{ @right } }:"
+    on_left_only.each(&present_branch)
+    
+    puts "\non #{ green{ @right }} but not on #{ red{ @left } }:"
+    on_right_only.each(&present_branch)
+  end
+
+  def left_merged
+    @left_merged ||= branches_merged_to @left
+  end
+  private :left_merged
+
+  def right_merged
+    @right_merged ||= branches_merged_to @right
+  end
+  private :right_merged
+
+  def branches_merged_to(branch)
+    `git branch -a --merged #{branch}`.split("\n")
+                                      .map{ |l| l.strip }
+                                      .reject{ |merged| merged.gsub(/\*/, '').strip == branch }
+  end
+  private :branches_merged_to
+
+  def on_left_only
+    (left_merged - right_merged).uniq
+  end
+  private :on_left_only
+
+  def on_right_only
+    (right_merged - left_merged).uniq
+  end
+  private :on_right_only
+
+end
+
+MergedBranchesDifference.new(ARGV).run
+
