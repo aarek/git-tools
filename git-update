@@ -1,0 +1,62 @@
+#! /usr/bin/env ruby
+# encoding: utf-8
+
+require 'rainbow'
+
+if ARGV[0].nil?
+  puts 'Please set path to workspace!'.foreground(:red)
+  puts "\nUsage:".foreground(:red)
+  puts "  $ ./git-update.rb /home/user/workspace".foreground(:red)
+  puts "\n"
+  exit
+end
+
+# path what will be checked for repositories and update them
+path = ARGV[0]
+
+if not File.exists? path
+  puts "Directory doesn't exists".foreground(:red)
+  exit
+end
+
+puts 'Update all directories:'.foreground(:yellow)
+
+def run_cmd(cmd)
+  `#{cmd}`.to_s.strip
+end
+
+Dir.glob("#{path}/*/").each do |dir|
+  abs_path = File.expand_path dir
+
+  print " => #{abs_path}".foreground(:cyan)
+  print ' ... '
+
+  if File.exists? "#{abs_path}/.git"
+    # change current directory
+    Dir.chdir abs_path
+
+    is_remote = run_cmd("git config remote.origin.url | wc -l").to_i == 1
+
+    if is_remote
+      # update list of branches
+      run_cmd("git fetch -p");
+
+      # update repository by modyfications
+      run_cmd("git pull --all")
+
+      print "it's updated".foreground(:green)
+      print ' ['
+      print run_cmd('git rev-parse --abbrev-ref HEAD').foreground(:blue)
+      print ']'
+      puts ''
+    else
+      puts "it's a local repository".foreground(:yellow)
+    end
+
+    # return to upper directory
+    Dir.chdir File.expand_path("..", Dir.pwd)
+  else
+    puts "it's not a repository".foreground(:red)
+    next
+  end
+end
