@@ -7,17 +7,18 @@ require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
 class Zip
   include Console::Colorize
 
-  INFO = "Create package from your repository\nusage: git zip PATH"
+  INFO = "Create package from your repository\nUsage: git zip PATH"
 
   def initialize(args)
-    puts INFO
-    exit if args.length == 0
-    @path, *_ = args
+    if args.length == 0
+      puts INFO
+      exit
+    end
+    @path, _ = args
   end
 
   def run
     # print all files in git changelist
-    puts `git status --untracked-files=no -sb`
     list_of_untracked_files = `git status --untracked-files=no -s`
 
     # for non-empty list
@@ -25,12 +26,17 @@ class Zip
   end
 
   def stash(path)
+    puts blue{ 'Building from modified repository' }
+    puts `git status --untracked-files=no -sb`
     `git archive --format zip --output "#{path}" \`git stash create\``
   end
+  private :stash
 
   def head(path)
+      puts green{ 'Building from updated repository' }
     `git archive --format zip --output "#{path}" HEAD`
   end
+  private :head
 end
 
 Zip.new(ARGV).run

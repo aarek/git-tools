@@ -7,34 +7,37 @@ require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
 class Update
   include Console::Colorize
 
-  INFO = "Update your workspace\nusage: git update PATH"
+  INFO = "Update your workspace\nUsage: git update PATH"
 
   def initialize(args)
-    @path, *_ = args
+    @path, _ = args
   end
 
   def run
-    puts INFO
-    exit if @path.nil?
-
-    if not File.exists? @path
-      puts red("Directory doesn't exists")
+    if @path.nil?
+      puts INFO
       exit
     end
 
-    puts yellow('Update all directories:')
+    if not File.exists? @path
+      puts red{ "Directory doesn't exists" }
+      exit
+    end
+
+    puts yellow{ 'Update all directories:' }
     update(@path)
   end
 
   def run_cmd(cmd)
     `#{cmd}`.to_s.strip
   end
+  private :run_cmd
 
   def update(path)
     Dir.glob("#{path}/*/").each do |dir|
       abs_path = File.expand_path dir
 
-      print cyan(" => #{abs_path}")
+      print cyan{ " => #{abs_path}" }
       print ' ... '
 
       if File.exists? "#{abs_path}/.git"
@@ -50,23 +53,24 @@ class Update
           # update repository by modyfications
           run_cmd("git pull --all")
 
-          print green("it's updated")
+          print green{ "it's updated" }
           print ' ['
-          print blue(run_cmd('git rev-parse --abbrev-ref HEAD'))
+          print blue{ run_cmd('git rev-parse --abbrev-ref HEAD') }
           print ']'
           puts ''
         else
-          puts yellow("it's a local repository")
+          puts yellow{ "it's a local repository" }
         end
 
         # return to upper directory
         Dir.chdir File.expand_path("..", Dir.pwd)
       else
-        puts red("it's not a repository")
+        puts red{ "it's not a repository" }
         next
       end
     end
   end
+  private :update
 end
 
 Update.new(ARGV).run

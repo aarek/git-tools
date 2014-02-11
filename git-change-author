@@ -1,22 +1,52 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+require 'optparse'
+require 'ostruct'
+
 class ChangeAuthor
-  INFO = "Change author name and email\nUsage: git change-author [--name OLD_NAME NEW_NAME] [--email OLD_EMAIL NEW_EMAIL]"
+  INFO = "Change author name and email\nUsage: git change-author [-n OLD_NAME NEW_NAME] [-e OLD_EMAIL NEW_EMAIL]"
 
   def initialize(args)
-    puts INFO
-    @type, @old, @new, *_ = args
+      @options = parse_options(args)
   end
 
   def run
-    case @type
-    when '--name'
-      update_name(@old, @new)
-    when '--email'
-      update_email(@old, @new)
-    end
+      puts @options.inspect
+      if !@options.old_name.nil? and !@options.new_name.nil?
+          update_name(@options.old_name, @options.new_name)
+      end
+
+      if !@options.old_email.nil? and !@options.new_email.nil?
+          update_email(@options.old_email, @options.new_email)
+      end
   end
+
+  def parse_options(args)
+    puts INFO if args.empty?
+    options = OpenStruct.new
+    op = OptionParser.new do |opts|
+      opts.banner = INFO
+      opts.separator ""
+      opts.separator "Specific options:"
+
+      opts.on("-n", "--name OLD_NAME,NEW_NAME", Array, "Change author & committer name") do |authors|
+          options.old_name, options.new_name, _ = authors
+      end
+
+      opts.on("-e", "--email OLD_NAME,NEW_NAME", Array, "Change author & committer email") do |authors|
+          options.old_email, options.new_email, _ = authors
+      end
+
+      opts.on("-h", "--help", "Show this message") do
+        puts opts
+        exit
+      end
+    end
+    op.parse!(args)
+    options
+  end
+  private :parse_options
 
   # update email address author and committer
   def update_email (old, new)
@@ -29,6 +59,7 @@ class ChangeAuthor
          git commit-tree "$@";
       fi'`
   end
+  private :update_email
 
   # update name of author and committer
   def update_name (old, new)
@@ -41,6 +72,7 @@ class ChangeAuthor
          git commit-tree "$@";
       fi'`
   end
+  private :update_name
 end
 
 ChangeAuthor.new(ARGV).run

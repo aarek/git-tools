@@ -7,11 +7,11 @@ require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
 class MergedBranchesDifference
   include Console::Colorize
 
-  INFO = "Show differences in merged branches between two branches\nusage: git merged-branches-differences left right"
+  INFO = "Show differences in merged branches between two branches\nUsage: git merged-branches-differences left right"
 
   def initialize(args)
     puts INFO
-    @left, @right, *_ = args
+    @left, @right, _ = args
     exit if @left.nil? || @right.nil?
   end
 
@@ -56,4 +56,3 @@ class MergedBranchesDifference
 end
 
 MergedBranchesDifference.new(ARGV).run
-
