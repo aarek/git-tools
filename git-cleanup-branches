@@ -1,10 +1,11 @@
-#! /usr/bin/env ruby
+#!/usr/bin/env ruby
 # encoding: utf-8
 
 require 'optparse'
 require 'ostruct'
 
 class CleanupBanches
+  INFO           = "Cleanup merged branches\nUsage: git cleanup-branches [-l -h] [-n NUM_COMMITS] [-k KEEP]"
   REMOTE_PATTERN = /\[remote \"(?<remote>\w+)\"\]/
   OPTIONS        = { :delete => ['y', 'yes'],
                      :skip   => ['N', 'No'],
@@ -27,7 +28,7 @@ class CleanupBanches
   def parse_options(args)
     options = OpenStruct.new DEFAULTS
     op = OptionParser.new do |opts|
-      opts.banner = "Cleanup merged branches\nusage: git cleanup-branches [-l -h] [-n NUM_COMMITS] [-k KEEP]"
+      opts.banner = INFO
       opts.separator ""
       opts.separator "Specific options:"
 
@@ -43,7 +44,7 @@ class CleanupBanches
         options.keep = branches_list
       end
 
-      opts.on("-h", "--help", "help") do
+      opts.on("-h", "--help", "Show this message") do
         puts opts
         exit
       end
@@ -214,4 +215,3 @@ class CleanupBanches
 end
 
 CleanupBanches.new(ARGV).run
-

@@ -1,0 +1,76 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+path = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
+require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
+
+class Update
+  include Console::Colorize
+
+  INFO = "Update your workspace\nUsage: git update PATH"
+
+  def initialize(args)
+    @path, _ = args
+  end
+
+  def run
+    if @path.nil?
+      puts INFO
+      exit
+    end
+
+    if not File.exists? @path
+      puts red{ "Directory doesn't exists" }
+      exit
+    end
+
+    puts yellow{ 'Update all directories:' }
+    update(@path)
+  end
+
+  def run_cmd(cmd)
+    `#{cmd}`.to_s.strip
+  end
+  private :run_cmd
+
+  def update(path)
+    Dir.glob("#{path}/*/").each do |dir|
+      abs_path = File.expand_path dir
+
+      print cyan{ " => #{abs_path}" }
+      print ' ... '
+
+      if File.exists? "#{abs_path}/.git"
+        # change current directory
+        Dir.chdir abs_path
+
+        is_remote = run_cmd("git config remote.origin.url | wc -l").to_i == 1
+
+        if is_remote
+          # update list of branches
+          run_cmd("git fetch -p");
+
+          # update repository by modyfications
+          run_cmd("git pull --all")
+
+          print green{ "it's updated" }
+          print ' ['
+          print blue{ run_cmd('git rev-parse --abbrev-ref HEAD') }
+          print ']'
+          puts ''
+        else
+          puts yellow{ "it's a local repository" }
+        end
+
+        # return to upper directory
+        Dir.chdir File.expand_path("..", Dir.pwd)
+      else
+        puts red{ "it's not a repository" }
+        next
+      end
+    end
+  end
+  private :update
+end
+
+Update.new(ARGV).run
