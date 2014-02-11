@@ -5,69 +5,68 @@ path = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
 require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
 
 class Update
-    include Console::Colorize
+  include Console::Colorize
 
-    INFO = "Update your workspace\nusage: git update PATH"
+  INFO = "Update your workspace\nusage: git update PATH"
 
-    def initialize(args)
-        @path, *_ = args
+  def initialize(args)
+    @path, *_ = args
+  end
+
+  def run
+    puts INFO
+    exit if @path.nil?
+
+    if not File.exists? @path
+      puts red("Directory doesn't exists")
+      exit
     end
 
-    def run
-        puts INFO
-        exit if @path.nil?
+    puts yellow('Update all directories:')
+    update(@path)
+  end
 
-        if not File.exists? @path
-          puts red("Directory doesn't exists")
-          exit
+  def run_cmd(cmd)
+    `#{cmd}`.to_s.strip
+  end
+
+  def update(path)
+    Dir.glob("#{path}/*/").each do |dir|
+      abs_path = File.expand_path dir
+
+      print cyan(" => #{abs_path}")
+      print ' ... '
+
+      if File.exists? "#{abs_path}/.git"
+        # change current directory
+        Dir.chdir abs_path
+
+        is_remote = run_cmd("git config remote.origin.url | wc -l").to_i == 1
+
+        if is_remote
+          # update list of branches
+          run_cmd("git fetch -p");
+
+          # update repository by modyfications
+          run_cmd("git pull --all")
+
+          print green("it's updated")
+          print ' ['
+          print blue(run_cmd('git rev-parse --abbrev-ref HEAD'))
+          print ']'
+          puts ''
+        else
+          puts yellow("it's a local repository")
         end
 
-        puts yellow('Update all directories:')
-
-        update(@path)
+        # return to upper directory
+        Dir.chdir File.expand_path("..", Dir.pwd)
+      else
+        puts red("it's not a repository")
+        next
+      end
     end
-
-    def run_cmd(cmd)
-      `#{cmd}`.to_s.strip
-    end
-
-    def update(path)
-        Dir.glob("#{path}/*/").each do |dir|
-          abs_path = File.expand_path dir
-
-          print cyan(" => #{abs_path}")
-          print ' ... '
-
-          if File.exists? "#{abs_path}/.git"
-            # change current directory
-            Dir.chdir abs_path
-
-            is_remote = run_cmd("git config remote.origin.url | wc -l").to_i == 1
-
-            if is_remote
-              # update list of branches
-              run_cmd("git fetch -p");
-
-              # update repository by modyfications
-              run_cmd("git pull --all")
-
-              print green("it's updated")
-              print ' ['
-              print blue(run_cmd('git rev-parse --abbrev-ref HEAD'))
-              print ']'
-              puts ''
-            else
-              puts yellow("it's a local repository")
-            end
-
-            # return to upper directory
-            Dir.chdir File.expand_path("..", Dir.pwd)
-          else
-            puts red("it's not a repository")
-            next
-          end
-        end
-    end
+  end
 end
 
 Update.new(ARGV).run

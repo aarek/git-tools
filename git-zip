@@ -5,32 +5,32 @@ path = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
 require File.join(File.dirname(File.expand_path(path)), "console/colorize.rb")
 
 class Zip
-    include Console::Colorize
+  include Console::Colorize
 
-    INFO = "Create package from your repository\nusage: git zip PATH"
+  INFO = "Create package from your repository\nusage: git zip PATH"
 
-    def initialize(args)
-        puts INFO
-        exit if args.length == 0
-        @path, *_ = args
-    end
+  def initialize(args)
+    puts INFO
+    exit if args.length == 0
+    @path, *_ = args
+  end
 
-    def run
-        # print all files in git changelist
-        puts `git status --untracked-files=no -sb`
-        list_of_untracked_files = `git status --untracked-files=no -s`
+  def run
+    # print all files in git changelist
+    puts `git status --untracked-files=no -sb`
+    list_of_untracked_files = `git status --untracked-files=no -s`
 
-        # for non-empty list
-        (list_of_untracked_files.length == 0) ? head(@path) : stash(@path)
-    end
+    # for non-empty list
+    (list_of_untracked_files.length == 0) ? head(@path) : stash(@path)
+  end
 
-    def stash(path)
-        `git archive --format zip --output "#{path}" \`git stash create\``
-    end
+  def stash(path)
+    `git archive --format zip --output "#{path}" \`git stash create\``
+  end
 
-    def head(path)
-        `git archive --format zip --output "#{path}" HEAD`
-    end
+  def head(path)
+    `git archive --format zip --output "#{path}" HEAD`
+  end
 end
 
 Zip.new(ARGV).run

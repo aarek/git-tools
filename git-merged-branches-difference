@@ -17,11 +17,11 @@ class MergedBranchesDifference
 
   def run
     present_branch = ->(branch){
-      puts "\t#{branch}" 
+      puts "\t#{branch}"
     }
     puts "\non #{ green{ @left } } but not on #{ red{ @right } }:"
     on_left_only.each(&present_branch)
-    
+
     puts "\non #{ green{ @right }} but not on #{ red{ @left } }:"
     on_right_only.each(&present_branch)
   end
