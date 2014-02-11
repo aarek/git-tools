@@ -12,7 +12,6 @@ class ChangeAuthor
   end
 
   def run
-      puts @options.inspect
       if !@options.old_name.nil? and !@options.new_name.nil?
           update_name(@options.old_name, @options.new_name)
       end
