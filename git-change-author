@@ -5,7 +5,7 @@ require 'optparse'
 require 'ostruct'
 
 class ChangeAuthor
-  INFO = "Change author name and email\nUsage: git change-author [-n OLD_NAME NEW_NAME] [-e OLD_EMAIL NEW_EMAIL]"
+  INFO = "Change author name and email\nUsage: git change-author [-n OLD_NAME,NEW_NAME] [-e OLD_EMAIL,NEW_EMAIL]"
 
   def initialize(args)
       @options = parse_options(args)
